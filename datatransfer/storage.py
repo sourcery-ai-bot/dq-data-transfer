@@ -417,11 +417,10 @@ class SftpStorage:
             if err.errno == errno.ENOENT:
                 LOGGER.error('sFTP - (File not found) Check the path is not relative '
                              + self.path + '/' + file_name)
-                raise
             else:
                 LOGGER.error('sFTP - Error writing file to sftp server '
                              + self.path + '/' + file_name + ' ' + repr(err))
-                raise
+            raise
         except Exception as err:
             LOGGER.exception('sFTP - Unexpected error ' + repr(err))
             raise
@@ -484,17 +483,15 @@ def get_s3_resource(conf):
     aws_secret_access_key = conf.get('AWS_SECRET_ACCESS_KEY')
     use_iam_creds = conf.get('USE_IAM_CREDS')
 
-    if use_iam_creds == 'True':
-        LOGGER.info('S3 - AWS Credentials not supplied - will revert to IAM if available')
-        resource = boto3.resource('s3')
-    else:
-        resource = boto3.resource('s3', region_name=region_name,
+    if use_iam_creds != 'True':
+        return boto3.resource('s3', region_name=region_name,
                                   endpoint_url=endpoint_url,
                                   aws_access_key_id=aws_access_key_id,
                                   aws_secret_access_key=aws_secret_access_key,
                                  )
 
-    return resource
+    LOGGER.info('S3 - AWS Credentials not supplied - will revert to IAM if available')
+    return boto3.resource('s3')
 
 def get_bucket(bucket_name, conf):
     """Gets an S3 bucket from an S3 service resource.
@@ -539,7 +536,7 @@ class S3Storage:
         self.path = utils.chop_end_of_string(conf.get('path'), ('/' + settings.TMP_FOLDER_NAME))
         self.bucket = get_bucket(conf.get('AWS_S3_BUCKET_NAME'), conf)
         LOGGER.debug('S3 - Path: ' + self.path)
-        self.transfer_conf = dict()
+        self.transfer_conf = {}
         if conf.get('AWS_S3_ENCRYPT'):
             self.transfer_conf.update(ServerSideEncryption=conf.get('AWS_S3_ENCRYPT'))
 
@@ -834,9 +831,8 @@ class MessageQueue:
                 # nack received, retry,
                 if nack_counter >= self.MAX_RETRIES:
                     raise RuntimeError('Reached max retry count for event publication')
-                else:
-                    LOGGER.warning('MessageQueue - Failed to send message to broker')
-                    nack_counter += 1
+                LOGGER.warning('MessageQueue - Failed to send message to broker')
+                nack_counter += 1
             return True
         except Exception as err:
             LOGGER.exception('MessageQueue - Unexpected error publishing event ' + repr(err))

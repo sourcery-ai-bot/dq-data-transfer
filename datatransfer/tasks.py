@@ -168,8 +168,6 @@ def move_file(file_name, source=settings.INGEST_SOURCE_PATH,
         LOGGER.exception('Main - Error with storage ' + repr(err))
         raise
     LOGGER.debug('PROCESS FILE ' + repr(file_name))
-    if file_name == '':
-        pass
     try:
         contents = read_storage.read_file(file_name)
         write_storage.write_file(file_name, contents)
@@ -235,14 +233,13 @@ def process_files(source=settings.INGEST_SOURCE_PATH,
             mq.publish_event(file_name)
             LOGGER.debug('Main - Published {0}'.format(file_name))
         mq.exit()
+    elif settings.READ_MQ.capitalize() == "True":
+        mq = storage.create_mq("read")
+        mq.consume(callback=move_file_callback)
     else:
-        if settings.READ_MQ.capitalize() == "True":
-            mq = storage.create_mq("read")
-            mq.consume(callback=move_file_callback)
-        else:
-            files = read_storage.list_dir()[:settings.MAX_FILES_BATCH]
-            for file_name in files:
-                move_file(file_name, copy_files=copy_files)
+        files = read_storage.list_dir()[:settings.MAX_FILES_BATCH]
+        for file_name in files:
+            move_file(file_name, copy_files=copy_files)
 
     read_storage.exit()
     write_storage.exit()
